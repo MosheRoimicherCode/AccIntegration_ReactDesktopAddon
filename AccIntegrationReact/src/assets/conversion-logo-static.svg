@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="320" height="320" viewBox="0 0 320 320" role="img" aria-labelledby="logo-title logo-desc">
+  <title id="logo-title">Layer conversion</title>
+  <desc id="logo-desc">Three blue isometric layers stacked vertically.</desc>
+  <defs>
+    <path id="plate" d="M 166 113 L 249 154.5 Q 260 160 249 165.5 L 166 207 Q 160 210 154 207 L 71 165.5 Q 60 160 71 154.5 L 154 113 Q 160 110 166 113 Z"/>
+  </defs>
+  <g class="layer-bottom" transform="translate(0 42)">
+    <use href="#plate" fill="#66ACD0" transform="translate(0 7)"/>
+    <use href="#plate" fill="#94C9E3"/>
+  </g>
+  <g class="layer-middle">
+    <use href="#plate" fill="#2887B8" transform="translate(0 7)"/>
+    <use href="#plate" fill="#51A6D0"/>
+  </g>
+  <g class="layer-top" transform="translate(0 -42)">
+    <use href="#plate" fill="#0E6898" transform="translate(0 7)"/>
+    <use href="#plate" fill="#1383BE"/>
+  </g>
+</svg>

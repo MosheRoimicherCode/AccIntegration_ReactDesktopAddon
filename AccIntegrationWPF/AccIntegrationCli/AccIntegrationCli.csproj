@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <!-- The ACC web UI runs {TerraExplorer DataPath}\Add-ons\AccIntegration\DesktopTEZ.exe. -->
+    <AssemblyName>DesktopTEZ</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\AccIntegration\AccIntegration.csproj" />
+    <ProjectReference Include="..\AccIntegration.TerraExplorer\AccIntegration.TerraExplorer.csproj" />
+  </ItemGroup>
+
+</Project>

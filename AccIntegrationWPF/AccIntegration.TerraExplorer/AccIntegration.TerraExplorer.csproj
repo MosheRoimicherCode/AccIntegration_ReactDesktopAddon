@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <COMReference Include="TerraExplorerX">
+      <WrapperTool>tlbimp</WrapperTool>
+      <VersionMinor>0</VersionMinor>
+      <VersionMajor>1</VersionMajor>
+      <Guid>b87695b0-65ad-11d5-85c1-0001023952c1</Guid>
+      <Lcid>0</Lcid>
+      <Isolated>false</Isolated>
+      <EmbedInteropTypes>true</EmbedInteropTypes>
+    </COMReference>
+  </ItemGroup>
+
+  <!-- Skyline 3DML builder API (.NET Framework, IL-only). Loaded at runtime from the TerraExplorer
+       install folder by TerraExplorerAssemblies, so it is not copied to the output. -->
+  <ItemGroup>
+    <Reference Include="3DML.Api">
+      <HintPath>C:\Program Files\Skyline\TerraExplorer Pro\3DML.Api.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <!-- log4net inside 3DML reads app settings through this; not part of .NET 8 itself. -->
+    <PackageReference Include="System.Configuration.ConfigurationManager" Version="8.0.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\AccIntegration\AccIntegration.csproj" />
+  </ItemGroup>
+
+</Project>
