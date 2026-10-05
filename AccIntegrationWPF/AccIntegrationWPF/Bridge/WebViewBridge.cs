@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Windows.Threading;
+using AccIntegration.Infra.Logging;
 using Microsoft.Web.WebView2.Core;
 
 namespace AccIntegrationWPF.Bridge;
@@ -18,13 +19,19 @@ public sealed class WebViewBridge
     };
 
     private readonly Dispatcher _dispatcher;
+    private readonly FileLogger _logger;
     private readonly Queue<string> _pending = new();
     private CoreWebView2? _webView;
     private bool _uiReady;
 
-    public WebViewBridge(Dispatcher dispatcher)
+    public WebViewBridge(Dispatcher dispatcher, FileLogger logger)
     {
         _dispatcher = dispatcher ?? throw new ArgumentNullException(nameof(dispatcher));
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        // Do not use SendError here: it would attempt another write to the failed logger.
+        _logger.WriteFailed += message => Send("error", new { message });
+        if (_logger.LastWriteFailure is { } failure)
+            Send("error", new { message = failure });
     }
 
     // Raised on the UI thread with the message type and payload (Undefined when absent);
@@ -55,12 +62,14 @@ public sealed class WebViewBridge
     /// </summary>
     public void SendError(string message)
     {
+        _logger.Error($"event=wpf.ui.error; message={message}");
         Send("error", new { message });
     }
 
-    public void SendError(Exception exception)
+    public void SendError(Exception exception, string? message = null)
     {
-        SendError(ErrorText.From(exception));
+        _logger.Error($"event=wpf.ui.error; message={message ?? exception.Message}; exception={exception}");
+        Send("error", new { message = message ?? ErrorText.From(exception) });
     }
 
     private void Flush()
@@ -89,8 +98,9 @@ public sealed class WebViewBridge
             if (message.RootElement.TryGetProperty("payload", out JsonElement payloadElement))
                 payload = payloadElement.Clone();
         }
-        catch (JsonException)
+        catch (JsonException ex)
         {
+            _logger.Error($"event=wpf.bridge.invalid_message; exception={ex}");
             return;
         }
 

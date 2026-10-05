@@ -8,7 +8,7 @@ export function ActionBar({ onConvert, onCancel, convertDisabled }: ActionBarPro
   return (
     <div className="action-bar">
       <button type="button" className="btn-outline" onClick={onCancel}>
-        Cancel
+        Cancel model
       </button>
       <button
         type="button"

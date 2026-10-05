@@ -57,6 +57,40 @@ public static class IncomingPayloads
         };
     }
 
+    /// <summary>
+    /// switchToNext: coordinates and an optional coordinate system, preserving edits while a model is deferred.
+    /// </summary>
+    public static IfcPlacement ReadPlacementDraft(JsonElement payload)
+    {
+        if (payload.ValueKind != JsonValueKind.Object ||
+            !payload.TryGetProperty("coordinates", out JsonElement coordinates))
+            throw new ArgumentException("The model switch is missing coordinates.");
+
+        CoordinateSystemInfo? coordinateSystemInfo = null;
+        if (payload.TryGetProperty("coordinateSystem", out JsonElement coordinateSystem) &&
+            coordinateSystem.ValueKind == JsonValueKind.Object &&
+            coordinateSystem.TryGetProperty("wkt", out JsonElement wkt) &&
+            wkt.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(wkt.GetString()))
+        {
+            coordinateSystemInfo = new CoordinateSystemInfo
+            {
+                Wkt = wkt.GetString()!,
+                Name = coordinateSystem.TryGetProperty("name", out JsonElement name) && name.ValueKind == JsonValueKind.String
+                    ? name.GetString()!
+                    : string.Empty
+            };
+        }
+
+        return new IfcPlacement
+        {
+            X = ReadNumber(coordinates, "x"),
+            Y = ReadNumber(coordinates, "y"),
+            Z = ReadNumber(coordinates, "z"),
+            HasPivot = true,
+            CoordinateSystem = coordinateSystemInfo
+        };
+    }
+
     private static double ReadNumber(JsonElement coordinates, string name)
     {
         if (coordinates.ValueKind == JsonValueKind.Object &&

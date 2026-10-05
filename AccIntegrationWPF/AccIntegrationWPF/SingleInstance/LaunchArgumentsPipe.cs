@@ -1,6 +1,7 @@
 using System.IO;
 using System.IO.Pipes;
 using System.Text.Json;
+using AccIntegration.Infra.Logging;
 
 namespace AccIntegrationWPF.SingleInstance;
 
@@ -14,6 +15,12 @@ public sealed class LaunchArgumentsPipe : IDisposable
     private static readonly TimeSpan ConnectTimeout = TimeSpan.FromSeconds(5);
 
     private readonly CancellationTokenSource _stop = new();
+    private readonly FileLogger _logger;
+
+    public LaunchArgumentsPipe(FileLogger logger)
+    {
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+    }
 
     // Raised on a background thread.
     public event Action<string[]>? ArgumentsReceived;
@@ -26,7 +33,7 @@ public sealed class LaunchArgumentsPipe : IDisposable
     /// <summary>
     /// Sends the arguments to the primary instance. Returns false when it could not be reached.
     /// </summary>
-    public static bool TrySend(string[] args)
+    public static bool TrySend(string[] args, FileLogger logger)
     {
         try
         {
@@ -38,6 +45,7 @@ public sealed class LaunchArgumentsPipe : IDisposable
         }
         catch (Exception ex) when (ex is TimeoutException or IOException)
         {
+            logger.Error($"event=wpf.launch.forward_failed; exception={ex}");
             return false;
         }
     }
@@ -76,6 +84,7 @@ public sealed class LaunchArgumentsPipe : IDisposable
             }
             catch (Exception ex) when (ex is IOException or JsonException)
             {
+                _logger.Error($"event=wpf.launch.receive_failed; exception={ex}");
                 // A broken or malformed launch message is dropped; keep listening for the next one.
             }
         }

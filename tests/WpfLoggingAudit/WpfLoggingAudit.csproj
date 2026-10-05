@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../AccIntegrationWPF/AccIntegration/AccIntegration.csproj" />
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4191.47" />
+    <Compile Include="../../AccIntegrationWPF/AccIntegrationWPF/Bridge/WebViewBridge.cs" Link="Production/WebViewBridge.cs" />
+    <Compile Include="../../AccIntegrationWPF/AccIntegrationWPF/Bridge/ErrorText.cs" Link="Production/ErrorText.cs" />
+    <Compile Include="../../AccIntegrationWPF/AccIntegrationWPF/Conversion/ConversionQueue.cs" Link="Production/ConversionQueue.cs" />
+    <Compile Include="../../AccIntegrationWPF/AccIntegrationWPF/LaunchArguments.cs" Link="Production/LaunchArguments.cs" />
+  </ItemGroup>
+</Project>

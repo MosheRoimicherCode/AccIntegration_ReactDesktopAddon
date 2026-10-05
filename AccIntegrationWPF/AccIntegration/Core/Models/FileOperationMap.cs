@@ -32,7 +32,12 @@ public static class FileOperationMap
             [".zip"] = FileOperation.OpenWithDefaultApp,
 
             [".shx"] = FileOperation.StoreOnly,
-            [".dbf"] = FileOperation.StoreOnly
+            [".dbf"] = FileOperation.StoreOnly,
+            [".prj"] = FileOperation.StoreOnly,
+            [".cpg"] = FileOperation.StoreOnly,
+            [".qix"] = FileOperation.StoreOnly,
+            [".sbn"] = FileOperation.StoreOnly,
+            [".sbx"] = FileOperation.StoreOnly
         };
 
     /// <summary>

@@ -15,6 +15,9 @@ export type OutgoingMessage =
   | { type: 'close' }
   | { type: 'drag' }
   | { type: 'minimize' }
+  | { type: 'cancelCurrent' }
+  | { type: 'switchToNext'; payload: { coordinates: Coordinates; coordinateSystem: CoordinateSystem | null } }
+  | { type: 'moveQueueItem'; payload: { from: number; to: number } }
   // Start converting the current IFC with these values (as read from the IFC, or edited by the user).
   | { type: 'convert'; payload: { coordinates: Coordinates; coordinateSystem: CoordinateSystem } }
   // Open TerraExplorer's coordinate system dialog, starting from the current selection.
@@ -35,10 +38,10 @@ export interface QueueState {
 
 export type ImportResult =
   | (ConversionRequest & { success: true; status: 'uploaded'; message?: string | null })
-  | { success: false; status: 'failed'; message: string; ifcPath?: string; outputPath?: string };
+  | { success: false; status: 'failed' | 'cancelled'; message: string; ifcPath?: string; outputPath?: string };
 
 export interface ModelResult extends ConversionRequest {
-  status: 'uploaded' | 'failed';
+  status: 'uploaded' | 'failed' | 'cancelled';
   message?: string;
 }
 

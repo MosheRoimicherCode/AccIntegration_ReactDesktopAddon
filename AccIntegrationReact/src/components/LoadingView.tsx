@@ -1,8 +1,9 @@
 interface LoadingViewProps {
   progress: number; // 0-100
+  onCancel: () => void;
 }
 
-export function LoadingView({ progress }: LoadingViewProps) {
+export function LoadingView({ progress, onCancel }: LoadingViewProps) {
   const clamped = Math.max(0, Math.min(100, progress));
 
   return (
@@ -17,6 +18,7 @@ export function LoadingView({ progress }: LoadingViewProps) {
         <div className="progress-fill" style={{ width: `${clamped}%` }} />
       </div>
       <div className="progress-label">{clamped}%</div>
+      <button type="button" className="btn-outline loading-cancel" onClick={onCancel}>Cancel model</button>
     </main>
   );
 }

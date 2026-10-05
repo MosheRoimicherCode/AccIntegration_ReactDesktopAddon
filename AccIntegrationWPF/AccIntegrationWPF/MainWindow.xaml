@@ -7,8 +7,9 @@
         xmlns:Wpf="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf" x:Class="AccIntegrationWPF.MainWindow"
         mc:Ignorable="d"
         WindowStyle="None"
-        ResizeMode="CanResizeWithGrip"
-        Title="MainWindow" Height="320" Width="340" MinHeight="300" MinWidth="320">
+        ResizeMode="NoResize"
+        WindowState="Normal"
+        Title="Acc Integration" Height="320" Width="340">
     <Grid>
         <Grid.ColumnDefinitions>
         </Grid.ColumnDefinitions>

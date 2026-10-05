@@ -27,5 +27,12 @@ public sealed class OgrFeatureLayerImporter : ILayerImporter
 
         layer.Refresh();
         ClientDataValues.ApplyTo(layer, clientData);
+
+        string extension = Path.GetExtension(filePath);
+        if (!string.Equals(extension, ".dwg", StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(extension, ".dwf", StringComparison.OrdinalIgnoreCase))
+        {
+            _connection.World.Navigate.FlyTo(layer);
+        }
     }
 }

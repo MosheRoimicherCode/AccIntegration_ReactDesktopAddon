@@ -83,13 +83,21 @@ public sealed class FileOrchestrator : IFileOrchestrator
         EnsureTiffModeSelected(file.FilePath, importMode);
 
         string? outputPath = null;
+        AccIntegration.Core.Models.IfcConversionResult? ifcConversionResult = null;
 
         switch (operation)
         {
             case FileOperation.ImportToTerraExplorer:
-                await _terraExplorerImportService
-                    .ImportAsync(file.Metadata, importMode, cancellationToken)
-                    .ConfigureAwait(false);
+                try
+                {
+                    await _terraExplorerImportService
+                        .ImportAsync(file.Metadata, importMode, cancellationToken)
+                        .ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    throw new LayerImportException(file.FilePath, ex);
+                }
                 break;
 
             case FileOperation.OpenWithDefaultApp:
@@ -100,9 +108,23 @@ public sealed class FileOrchestrator : IFileOrchestrator
                 break;
 
             case FileOperation.ConvertIfcTo3dml:
-                // Hand-off only: the local processor converts later and reports nothing back.
                 outputPath = Resolve3dmlOutputPath(file.FilePath);
-                _ifcConversionLauncher.Launch(file.FilePath, outputPath);
+                try
+                {
+                    ifcConversionResult = await _ifcConversionLauncher
+                        .LaunchAsync(file.FilePath, outputPath, cancellationToken)
+                        .ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    ifcConversionResult = new IfcConversionResult
+                    {
+                        Success = false,
+                        Status = ex is OperationCanceledException ? "cancelled" : "failed",
+                        Message = ex is OperationCanceledException ? "Cancelled by user." : ex.Message,
+                        FailureException = ex
+                    };
+                }
                 break;
 
             default:
@@ -114,7 +136,8 @@ public sealed class FileOrchestrator : IFileOrchestrator
             Operation = operation,
             ImportMode = importMode,
             File = file,
-            OutputPath = outputPath
+            OutputPath = outputPath,
+            IfcConversionResult = ifcConversionResult
         };
     }
 

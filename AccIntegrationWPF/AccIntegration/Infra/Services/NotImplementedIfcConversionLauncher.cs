@@ -7,9 +7,13 @@ namespace AccIntegration.Infra.Services;
 /// </summary>
 public sealed class NotImplementedIfcConversionLauncher : IIfcConversionLauncher
 {
-    public void Launch(string ifcPath, string outputPath)
+    public Task<AccIntegration.Core.Models.IfcConversionResult> LaunchAsync(
+        string ifcPath,
+        string outputPath,
+        CancellationToken cancellationToken = default)
     {
-        throw new NotSupportedException(
-            $"IFC to 3DML conversion is not available. The file is stored at '{ifcPath}'.");
+        return Task.FromException<AccIntegration.Core.Models.IfcConversionResult>(
+            new NotSupportedException(
+                $"IFC to 3DML conversion is not available. The file is stored at '{ifcPath}'."));
     }
 }

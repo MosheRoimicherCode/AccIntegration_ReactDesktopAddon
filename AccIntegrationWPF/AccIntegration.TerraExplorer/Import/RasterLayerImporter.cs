@@ -87,6 +87,7 @@ public sealed class RasterLayerImporter : ILayerImporter
 
         layer.Refresh(0);
         ClientDataValues.ApplyTo(layer, clientData);
+        _connection.World.Navigate.FlyTo(layer);
     }
 
     private void ImportElevation(string filePath, IReadOnlyDictionary<string, string> clientData)
@@ -107,5 +108,6 @@ public sealed class RasterLayerImporter : ILayerImporter
 
         layer.Refresh(0);
         ClientDataValues.ApplyTo(layer, clientData);
+        _connection.World.Navigate.FlyTo(layer);
     }
 }

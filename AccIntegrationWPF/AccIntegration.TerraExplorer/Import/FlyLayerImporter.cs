@@ -27,5 +27,6 @@ public sealed class FlyLayerImporter : ILayerImporter
             ?? throw new InvalidOperationException("LoadFlyLayer object could not be resolved via ProjectTree.GetObject.");
 
         ClientDataValues.ApplyTo(loadedObject, clientData);
+        _connection.World.Navigate.FlyTo(loadedObject);
     }
 }

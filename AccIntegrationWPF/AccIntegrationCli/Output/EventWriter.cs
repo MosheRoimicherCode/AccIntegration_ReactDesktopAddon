@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using AccIntegration.Core.Models;
+using AccIntegration.Infra.Logging;
 
 namespace AccIntegrationCli.Output;
 
@@ -28,14 +29,34 @@ public sealed class EventWriter
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
-    public void Info(string name, string message, Dictionary<string, object?>? data = null)
+    public void Info(string name, string message, Dictionary<string, object?>? data = null, Exception? exception = null)
     {
-        Write(name, "info", message, data, _standardOutput);
+        Write(name, "info", message, data, _standardOutput, exception: exception);
     }
 
-    public void Error(string name, string message, Dictionary<string, object?>? data = null)
+    public void Error(string name, string message, Dictionary<string, object?>? data = null, Exception? exception = null)
     {
-        Write(name, "error", message, data, _standardError);
+        Write(name, "error", message, data, _standardError, exception: exception);
+    }
+
+    public void ImportResult(
+        bool success,
+        string status,
+        string message,
+        Dictionary<string, object?> data,
+        Dictionary<string, object?> payload,
+        Exception? exception = null)
+    {
+        payload["status"] = status;
+        Write(
+            success ? "terra.import.completed" : "terra.import.failed",
+            success ? "info" : "error",
+            message,
+            data,
+            success ? _standardOutput : _standardError,
+            "importResult",
+            payload,
+            exception);
     }
 
     private void Write(
@@ -43,10 +64,15 @@ public sealed class EventWriter
         string level,
         string message,
         Dictionary<string, object?>? data,
-        TextWriter target)
+        TextWriter target,
+        string? type = null,
+        object? payload = null,
+        Exception? exception = null)
     {
         var uiEvent = new UiWorkflowEvent
         {
+            Type = type,
+            Payload = payload,
             Name = name,
             Level = level,
             Message = message,
@@ -55,6 +81,10 @@ public sealed class EventWriter
 
         string json = JsonSerializer.Serialize(uiEvent, JsonOptions);
         string logLine = $"event={name}; message={message}; data={JsonSerializer.Serialize(uiEvent.Data, JsonOptions)}";
+        if (type is not null)
+            logLine += $"; type={type}; payload={JsonSerializer.Serialize(payload, JsonOptions)}";
+        if (exception is not null)
+            logLine += $"; exception={exception}";
 
         if (level == "error")
             _logger.Error(logLine);

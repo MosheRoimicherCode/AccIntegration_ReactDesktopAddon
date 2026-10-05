@@ -6,6 +6,10 @@ namespace AccIntegration.Infra.Services;
 public sealed class DownloadStoragePathProvider : IDownloadStoragePathProvider
 {
     private static readonly HashSet<char> InvalidChars = Path.GetInvalidFileNameChars().ToHashSet();
+    private static readonly HashSet<string> ShapefileExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".shp", ".shx", ".dbf", ".prj", ".cpg", ".qix", ".sbn", ".sbx"
+    };
 
     public string AppFolderPath { get; }
 
@@ -40,6 +44,9 @@ public sealed class DownloadStoragePathProvider : IDownloadStoragePathProvider
             return "OTHER";
 
         ReadOnlySpan<char> span = extension.AsSpan().Trim();
+
+        if (ShapefileExtensions.Contains(span.ToString()))
+            return "SHP";
 
         if (span.StartsWith("."))
             span = span[1..];

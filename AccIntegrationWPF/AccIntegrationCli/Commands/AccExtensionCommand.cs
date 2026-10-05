@@ -32,6 +32,7 @@ public sealed class AccExtensionCommand : ICliCommand
 
         bool exists;
         string details;
+        Exception? failure = null;
         try
         {
             _licenseService.EnsureLicensed();
@@ -40,6 +41,7 @@ public sealed class AccExtensionCommand : ICliCommand
         }
         catch (Exception ex)
         {
+            failure = ex;
             exists = false;
             details = ex.Message;
         }
@@ -51,7 +53,7 @@ public sealed class AccExtensionCommand : ICliCommand
             {
                 ["exists"] = exists,
                 ["details"] = details
-            });
+            }, failure);
 
         return Task.FromResult(exists ? 0 : 1);
     }

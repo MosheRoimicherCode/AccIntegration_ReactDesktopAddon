@@ -289,6 +289,13 @@
   font-weight: var(--font-weight-bold);
 }
 
+.queue-switch-button {
+  align-self: flex-start;
+  height: 28px;
+  margin-top: 4px;
+  padding: 0 10px;
+}
+
 .queue-model-name {
   min-width: 0;
   overflow-wrap: anywhere;
@@ -301,6 +308,47 @@
 
 .queue-list li {
   padding: 6px 0;
+}
+
+.queue-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 0;
+}
+
+.queue-item-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 2px;
+}
+
+.queue-order-actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 4px;
+}
+
+.queue-order-button {
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--color-border);
+  border-radius: 5px;
+  background: var(--color-bg-white);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.queue-order-button:hover:not(:disabled) {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.queue-order-button:disabled {
+  opacity: 0.4;
+  cursor: default;
 }
 
 .queue-position {
@@ -344,6 +392,10 @@
 
 .queue-result-failed {
   color: var(--color-danger);
+}
+
+.queue-result-cancelled {
+  color: var(--color-text-gray);
 }
 
 .queue-result-message {
@@ -561,8 +613,8 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 12px;
-  padding: 16px;
+  gap: 8px;
+  padding: 8px 16px;
   overflow-y: auto;
 }
 
@@ -573,8 +625,8 @@
 .conversion-logo,
 .conversion-logo img {
   display: block;
-  width: 128px;
-  height: 128px;
+  width: 88px;
+  height: 88px;
 }
 
 .conversion-label {
@@ -603,6 +655,10 @@
   font-size: var(--font-size-sm);
   font-weight: 600;
   color: var(--color-text-secondary);
+}
+
+.loading-cancel {
+  margin-top: 2px;
 }
 
 /* Settings overlay — mirrors SettingsView.css conventions */

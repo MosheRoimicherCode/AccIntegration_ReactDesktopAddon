@@ -24,7 +24,8 @@ internal static class BimCreationJob
         // OnFinished also fires after OnError, so the first error is kept and reported on finish.
         var finished = new TaskCompletionSource<string?>(TaskCreationOptions.RunContinuationsAsynchronously);
         string? error = null;
-        creator.OnProgress += value => progress?.Report(Math.Clamp(value, 0, 100));
+        // Skyline reports a fraction (0-1); our application and bridge use percent (0-100).
+        creator.OnProgress += value => progress?.Report(Math.Clamp(value, 0, 1) * 100);
         creator.OnError += message => Interlocked.CompareExchange(ref error, message, null);
         creator.OnFinished += () => finished.TrySetResult(Volatile.Read(ref error));
 

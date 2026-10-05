@@ -11,6 +11,8 @@ public sealed class LaunchArguments
 
     public string? OutputPath { get; private init; }
 
+    public string? CompletionPipeName { get; private init; }
+
     // Why the arguments cannot be used, or null. No arguments at all is not an error (opened by hand).
     public string? Error { get; private init; }
 
@@ -21,6 +23,7 @@ public sealed class LaunchArguments
     {
         string? ifcPath = null;
         string? outputPath = null;
+        string? completionPipeName = null;
 
         for (int i = 0; i < args.Length - 1; i++)
         {
@@ -28,12 +31,15 @@ public sealed class LaunchArguments
                 ifcPath = args[++i];
             else if (string.Equals(args[i], "--output", StringComparison.OrdinalIgnoreCase))
                 outputPath = args[++i];
+            else if (string.Equals(args[i], "--completion-pipe", StringComparison.OrdinalIgnoreCase))
+                completionPipeName = args[++i];
         }
 
         return new LaunchArguments
         {
             IfcPath = ifcPath,
             OutputPath = outputPath,
+            CompletionPipeName = completionPipeName,
             Error = Validate(args, ifcPath, outputPath)
         };
     }
@@ -48,6 +54,9 @@ public sealed class LaunchArguments
 
         if (!File.Exists(ifcPath))
             return $"The IFC file to convert was not found: '{ifcPath}'.";
+
+        if (!string.Equals(Path.GetExtension(ifcPath), ".ifc", StringComparison.OrdinalIgnoreCase))
+            return $"Only IFC files can be sent to the local processor: '{ifcPath}'.";
 
         return null;
     }

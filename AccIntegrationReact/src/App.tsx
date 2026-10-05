@@ -80,7 +80,7 @@ function App() {
         if (result.success) {
           markModelAsUploaded(result);
         } else if (model) {
-          recordModelResult({ ...model, status: 'failed', message: result.message });
+          recordModelResult({ ...model, status: result.status, message: result.status === 'failed' ? result.message : undefined });
         }
 
         // A delayed result for another model must not clear the active model's form.
@@ -90,7 +90,7 @@ function App() {
           setCompletedModel(result.success && conversionRequest && queue.pending.length > 0 ? result : null);
           setView('import');
           setProgress(0);
-          setErrorMessage(result.success ? null : result.message ?? 'Conversion failed.');
+          setErrorMessage(result.success || result.status === 'cancelled' ? null : result.message ?? 'Conversion failed.');
           setConversionRequest(null);
         }
         break;
@@ -115,7 +115,12 @@ function App() {
     <div className="app">
       <Header onSettingsClick={() => setSettingsOpen(true)} />
 
-      <QueueStatus queue={queue} results={modelResults} />
+      <QueueStatus queue={queue} results={modelResults}
+        onMovePending={(from, to) => sendToHost({ type: 'moveQueueItem', payload: { from, to } })}
+        onSwitchToNext={() => sendToHost({
+          type: 'switchToNext',
+          payload: { coordinates, coordinateSystem },
+        })} />
 
       <div
         className="model-stage"
@@ -135,10 +140,10 @@ function App() {
           onCoordinatesChange={setCoordinates}
           onConvert={handleConvert}
           convertDisabled={!conversionRequest || !coordinateSystem}
-          onCancel={() => sendToHost({ type: 'close' })}
+          onCancel={() => sendToHost({ type: 'cancelCurrent' })}
         />
       ) : (
-        <LoadingView progress={progress} />
+        <LoadingView progress={progress} onCancel={() => sendToHost({ type: 'cancelCurrent' })} />
       )}
       </div>
 

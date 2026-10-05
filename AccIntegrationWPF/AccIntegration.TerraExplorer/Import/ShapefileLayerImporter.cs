@@ -32,6 +32,7 @@ public sealed class ShapefileLayerImporter : ILayerImporter
 
         layer.Refresh();
         ClientDataValues.ApplyTo(layer, clientData);
+        _connection.World.Navigate.FlyTo(layer);
     }
 
     private static void EnsureSidecarsExist(string shpFilePath)
@@ -40,9 +41,10 @@ public sealed class ShapefileLayerImporter : ILayerImporter
             ?? throw new InvalidOperationException($"Shapefile import failed: could not resolve directory for '{shpFilePath}'.");
 
         string baseName = Path.GetFileNameWithoutExtension(shpFilePath);
+        string storageRoot = Directory.GetParent(directory)?.FullName ?? directory;
         string[] missing = new[] { ".shx", ".dbf" }
+            .Where(extension => !EnsureSidecarAvailable(directory, storageRoot, baseName, extension))
             .Select(extension => $"{baseName}{extension}")
-            .Where(fileName => !File.Exists(Path.Combine(directory, fileName)))
             .ToArray();
 
         if (missing.Length > 0)
@@ -50,5 +52,29 @@ public sealed class ShapefileLayerImporter : ILayerImporter
             throw new InvalidOperationException(
                 $"Shapefile import failed: missing required sidecar file(s) {string.Join(", ", missing)} next to '{Path.GetFileName(shpFilePath)}'.");
         }
+    }
+
+    private static bool EnsureSidecarAvailable(
+        string shapefileDirectory,
+        string storageRoot,
+        string baseName,
+        string extension)
+    {
+        string sidecarName = $"{baseName}{extension}";
+        string colocatedPath = Path.Combine(shapefileDirectory, sidecarName);
+        if (File.Exists(colocatedPath))
+            return true;
+
+        // Older versions kept every extension in its own folder. Check that layout
+        // so previously downloaded shapefile sets continue to import.
+        string legacyPath = Path.Combine(
+            storageRoot,
+            extension.TrimStart('.').ToUpperInvariant(),
+            sidecarName);
+        if (!File.Exists(legacyPath))
+            return false;
+
+        File.Copy(legacyPath, colocatedPath, overwrite: false);
+        return true;
     }
 }

@@ -11,7 +11,12 @@ function fileName(path: string) {
   return path.split(/[\\/]/).pop() || path;
 }
 
-export function QueueStatus({ queue, results }: { queue: QueueState; results: ModelResult[] }) {
+export function QueueStatus({ queue, results, onMovePending, onSwitchToNext }: {
+  queue: QueueState;
+  results: ModelResult[];
+  onMovePending: (from: number, to: number) => void;
+  onSwitchToNext: () => void;
+}) {
   const [expanded, setExpanded] = useState(false);
   const toggleRef = useRef<HTMLButtonElement>(null);
   const closeQueue = () => {
@@ -28,7 +33,7 @@ export function QueueStatus({ queue, results }: { queue: QueueState; results: Mo
       <div className="queue-summary">
         <span className="queue-file" title={queue.current?.ifcPath ?? latestResult?.ifcPath}>
           {queue.current ? `IFC: ${fileName(queue.current.ifcPath)}` : queue.pending.length > 0 ? 'Waiting to start…'
-            : `${latestResult?.status === 'uploaded' ? 'Uploaded' : 'Failed'}: ${fileName(latestResult!.ifcPath)}`}
+            : `${latestResult?.status === 'uploaded' ? 'Uploaded' : latestResult?.status === 'cancelled' ? 'Cancelled' : 'Failed'}: ${fileName(latestResult!.ifcPath)}`}
         </span>
         <button
           ref={toggleRef}
@@ -60,14 +65,27 @@ export function QueueStatus({ queue, results }: { queue: QueueState; results: Mo
             <div className="queue-current">
               <span className="queue-stage">{queue.stage ? stageLabels[queue.stage] : 'Current model'}</span>
               <span className="queue-model-name" title={queue.current.ifcPath}>{fileName(queue.current.ifcPath)}</span>
+              {queue.stage === 'awaitingInput' && queue.pending.length > 0 && (
+                <button type="button" className="btn-outline queue-switch-button" onClick={onSwitchToNext}>
+                  Switch to next model
+                </button>
+              )}
             </div>
           )}
           {queue.pending.length > 0 ? (
             <ol className="queue-list" aria-label="Waiting models, in processing order">
               {queue.pending.map((job, index) => (
-                <li key={`${job.ifcPath}:${job.outputPath}:${index}`} title={job.ifcPath}>
-                  <span className="queue-model-name">{fileName(job.ifcPath)}</span>
-                  <span className="queue-position">{index === 0 ? 'Next' : 'Waiting'}</span>
+                <li className="queue-item" key={`${job.ifcPath}:${job.outputPath}:${index}`} title={job.ifcPath}>
+                  <div className="queue-item-info">
+                    <span className="queue-model-name">{fileName(job.ifcPath)}</span>
+                    <span className="queue-position">{index === 0 ? 'Next' : `Position ${index + 1}`}</span>
+                  </div>
+                  <div className="queue-order-actions" aria-label={`Order ${fileName(job.ifcPath)}`}>
+                    <button type="button" className="queue-order-button" aria-label={`Move ${fileName(job.ifcPath)} up`}
+                      disabled={index === 0} onClick={() => onMovePending(index, index - 1)}>↑</button>
+                    <button type="button" className="queue-order-button" aria-label={`Move ${fileName(job.ifcPath)} down`}
+                      disabled={index === queue.pending.length - 1} onClick={() => onMovePending(index, index + 1)}>↓</button>
+                  </div>
                 </li>
               ))}
             </ol>
@@ -80,7 +98,7 @@ export function QueueStatus({ queue, results }: { queue: QueueState; results: Mo
                   <li key={JSON.stringify([result.ifcPath, result.outputPath])}>
                     <span className="queue-model-name" title={result.ifcPath}>{fileName(result.ifcPath)}</span>
                     <span className={`queue-result-status queue-result-${result.status}`}>
-                      {result.status === 'uploaded' ? 'Uploaded' : 'Failed'}
+                      {result.status === 'uploaded' ? 'Uploaded' : result.status === 'cancelled' ? 'Cancelled' : 'Failed'}
                     </span>
                     {result.message && <span className="queue-result-message">{result.message}</span>}
                   </li>

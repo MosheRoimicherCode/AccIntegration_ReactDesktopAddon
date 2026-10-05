@@ -1,5 +1,6 @@
 using AccIntegration.Core.Interfaces;
 using AccIntegration.Core.Models;
+using AccIntegration.Infra.Logging;
 
 namespace AccIntegrationWPF.Conversion;
 
@@ -21,14 +22,18 @@ public enum ConversionStage
 public sealed class ConversionQueue
 {
     private readonly IIfcConversionOrchestrator _orchestrator;
+    private readonly FileLogger _logger;
     private readonly Queue<LaunchArguments> _pending = new();
+    private readonly Dictionary<LaunchArguments, IfcPlacement> _deferredPlacements = new();
     private TaskCompletionSource<IfcPlacement>? _userInput;
+    private CancellationTokenSource? _currentCancellation;
     private bool _started;
     private bool _running;
 
-    public ConversionQueue(IIfcConversionOrchestrator orchestrator)
+    public ConversionQueue(IIfcConversionOrchestrator orchestrator, FileLogger logger)
     {
         _orchestrator = orchestrator ?? throw new ArgumentNullException(nameof(orchestrator));
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
     public event Action<LaunchArguments>? JobStarted;
@@ -48,6 +53,8 @@ public sealed class ConversionQueue
 
     public LaunchArguments? Current { get; private set; }
 
+    public bool IsIdle => Current is null && _pending.Count == 0;
+
     public ConversionStage Stage { get; private set; }
 
     public IfcPlacement? CurrentPlacement { get; private set; }
@@ -62,6 +69,58 @@ public sealed class ConversionQueue
         _pending.Enqueue(request);
         QueueChanged?.Invoke();
         _ = ProcessAsync();
+    }
+
+    public void MovePending(int fromIndex, int toIndex)
+    {
+        LaunchArguments[] items = _pending.ToArray();
+        if (fromIndex < 0 || fromIndex >= items.Length || toIndex < 0 || toIndex >= items.Length || fromIndex == toIndex)
+            return;
+
+        (items[fromIndex], items[toIndex]) = (items[toIndex], items[fromIndex]);
+        _pending.Clear();
+        foreach (LaunchArguments item in items)
+            _pending.Enqueue(item);
+
+        QueueChanged?.Invoke();
+    }
+
+    public bool CancelCurrent()
+    {
+        if (Current is null || _currentCancellation is null)
+            return false;
+
+        _currentCancellation.Cancel();
+        _userInput?.TrySetCanceled(_currentCancellation.Token);
+        return true;
+    }
+
+    public bool SwitchToNextPending(IfcPlacement editedPlacement)
+    {
+        if (Current is not { } current || Stage != ConversionStage.AwaitingInput ||
+            _userInput is null || _userInput.Task.IsCompleted || _currentCancellation?.IsCancellationRequested != false ||
+            CurrentPlacement is not { } placement || _pending.Count == 0)
+            return false;
+
+        LaunchArguments next = _pending.Dequeue();
+        LaunchArguments[] remaining = _pending.ToArray();
+        _pending.Clear();
+        _pending.Enqueue(next);
+        _pending.Enqueue(current);
+        foreach (LaunchArguments request in remaining)
+            _pending.Enqueue(request);
+
+        // Reuse the coordinates already read when this model returns to the front.
+        _deferredPlacements[current] = new IfcPlacement
+        {
+            X = editedPlacement.X,
+            Y = editedPlacement.Y,
+            Z = editedPlacement.Z,
+            HasPivot = placement.HasPivot,
+            CoordinateSystem = editedPlacement.CoordinateSystem
+        };
+        _userInput.TrySetException(new DeferredJobException());
+        return true;
     }
 
     /// <summary>
@@ -95,9 +154,20 @@ public sealed class ConversionQueue
             while (_pending.TryDequeue(out LaunchArguments? request))
             {
                 Exception? failure = null;
+                bool deferred = false;
+                using var cancellation = new CancellationTokenSource();
+                _currentCancellation = cancellation;
                 try
                 {
-                    await RunJobAsync(request);
+                    await RunJobAsync(request, cancellation.Token);
+                }
+                catch (OperationCanceledException ex) when (cancellation.IsCancellationRequested)
+                {
+                    failure = new OperationCanceledException("Cancelled by user.", ex, cancellation.Token);
+                }
+                catch (DeferredJobException)
+                {
+                    deferred = true;
                 }
                 catch (Exception ex)
                 {
@@ -107,7 +177,18 @@ public sealed class ConversionQueue
                 Current = null;
                 CurrentPlacement = null;
                 _userInput = null;
-                JobCompleted?.Invoke(request, failure);
+                _currentCancellation = null;
+                if (!deferred)
+                {
+                    string context = $"ifcPath={request.IfcPath}; outputPath={request.OutputPath}";
+                    if (failure is null)
+                        _logger.Info($"event=wpf.import.completed; status=uploaded; {context}");
+                    else if (failure is OperationCanceledException)
+                        _logger.Info($"event=wpf.import.cancelled; status=cancelled; {context}");
+                    else
+                        _logger.Error($"event=wpf.import.failed; status=failed; {context}; exception={failure}");
+                    JobCompleted?.Invoke(request, failure);
+                }
                 QueueChanged?.Invoke();
             }
         }
@@ -117,7 +198,7 @@ public sealed class ConversionQueue
         }
     }
 
-    private async Task RunJobAsync(LaunchArguments request)
+    private async Task RunJobAsync(LaunchArguments request, CancellationToken cancellationToken)
     {
         Current = request;
         Stage = ConversionStage.Preparing;
@@ -125,15 +206,17 @@ public sealed class ConversionQueue
         JobStarted?.Invoke(request);
         QueueChanged?.Invoke();
 
-        IfcPlacement placement = await _orchestrator.PrepareAsync(request.IfcPath!);
+        IfcPlacement placement;
+        if (!_deferredPlacements.Remove(request, out placement!))
+            placement = await _orchestrator.PrepareAsync(request.IfcPath!, cancellationToken);
 
-        _userInput = new TaskCompletionSource<IfcPlacement>();
+        _userInput = new TaskCompletionSource<IfcPlacement>(TaskCreationOptions.RunContinuationsAsynchronously);
         CurrentPlacement = placement;
         Stage = ConversionStage.AwaitingInput;
         JobReady?.Invoke(request, placement);
         QueueChanged?.Invoke();
 
-        IfcPlacement confirmed = await _userInput.Task;
+        IfcPlacement confirmed = await _userInput.Task.WaitAsync(cancellationToken);
 
         Stage = ConversionStage.Converting;
         QueueChanged?.Invoke();
@@ -145,6 +228,8 @@ public sealed class ConversionQueue
             JobProgress?.Invoke(value);
         });
 
-        await _orchestrator.RunAsync(request.IfcPath!, request.OutputPath!, confirmed, progress);
+        await _orchestrator.RunAsync(request.IfcPath!, request.OutputPath!, confirmed, progress, cancellationToken);
     }
+
+    private sealed class DeferredJobException : Exception { }
 }

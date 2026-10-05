@@ -45,11 +45,28 @@ public sealed class ImportCommand : ICliCommand
             ["importMode"] = importMode
         });
 
-        FileOperationResult result = await _files
-            .RunLocalFileAsync(path, projectUrn, versionUrn, fileUrn, importMode, properties, cancellationToken)
-            .ConfigureAwait(false);
+        try
+        {
+            FileOperationResult result = await _files
+                .RunLocalFileAsync(path, projectUrn, versionUrn, fileUrn, importMode, properties, cancellationToken)
+                .ConfigureAwait(false);
 
-        _reporter.Completed(result);
-        return 0;
+            return _reporter.Completed(result) ? 0 : 1;
+        }
+        catch (Exception ex)
+        {
+            string failedPath = ex is LayerImportException importFailure ? importFailure.FilePath : path;
+            Exception reportedException = ex is LayerImportException { InnerException: not null } layerFailure
+                ? layerFailure.InnerException!
+                : ex;
+
+            if (FileOperationMap.Resolve(failedPath) is FileOperation.ImportToTerraExplorer or FileOperation.ConvertIfcTo3dml)
+            {
+                _reporter.FailedLayerImport(failedPath, reportedException);
+                return 1;
+            }
+
+            throw;
+        }
     }
 }

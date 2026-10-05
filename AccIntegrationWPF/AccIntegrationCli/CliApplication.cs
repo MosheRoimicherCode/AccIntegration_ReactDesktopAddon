@@ -1,4 +1,5 @@
 using AccIntegration.Core.Interfaces;
+using AccIntegration.Infra.Logging;
 using AccIntegrationCli.Commands;
 using AccIntegrationCli.Input;
 using AccIntegrationCli.Output;
@@ -71,7 +72,7 @@ public sealed class CliApplication
                 {
                     ["command"] = commandName,
                     ["exceptionType"] = ex.GetType().FullName
-                });
+                }, ex);
             return 1;
         }
     }
@@ -96,7 +97,7 @@ public sealed class CliApplication
                 {
                     ["operation"] = commandName,
                     ["exceptionType"] = ex.GetType().FullName
-                });
+                }, ex);
             return false;
         }
 

@@ -49,7 +49,13 @@ public sealed class DownloadedFileStorageService : IDownloadedFileStorageService
         ValidateUrn(versionUrn, nameof(versionUrn));
         ValidateUrn(fileUrn, nameof(fileUrn));
 
-        DownloadedFileMetadata? local = await FindLocalFileAsync(projectUrn, versionUrn, cancellationToken)
+        string? requestedExtension = string.IsNullOrWhiteSpace(fileName) ? null : Path.GetExtension(fileName);
+        DownloadedFileMetadata? local = await FindLocalFileAsync(
+                projectUrn,
+                versionUrn,
+                fileUrn,
+                requestedExtension,
+                cancellationToken)
             .ConfigureAwait(false);
 
         if (local is not null)
@@ -123,20 +129,26 @@ public sealed class DownloadedFileStorageService : IDownloadedFileStorageService
     }
 
     /// <summary>
-    /// Searches metadata for the project/version, deletes records whose file is gone,
-    /// and returns the newest 3DML if one exists, otherwise the newest remaining file.
+    /// Searches only the requested file's records, removes stale records for that file,
+    /// and returns a matching extension (or its converted 3DML for an IFC request).
     /// </summary>
     private async Task<DownloadedFileMetadata?> FindLocalFileAsync(
         string projectUrn,
         string versionUrn,
+        string fileUrn,
+        string? requestedExtension,
         CancellationToken cancellationToken)
     {
         IReadOnlyList<DownloadedFileMetadata> records = await _metadataQuery
             .GetAllByProjectAndVersionAsync(projectUrn, versionUrn, cancellationToken)
             .ConfigureAwait(false);
 
+        DownloadedFileMetadata[] requestedRecords = records
+            .Where(record => string.Equals(record.FileUrn, fileUrn, StringComparison.Ordinal))
+            .ToArray();
+
         var existing = new List<DownloadedFileMetadata>();
-        foreach (DownloadedFileMetadata record in records)
+        foreach (DownloadedFileMetadata record in requestedRecords)
         {
             if (_localFiles.Exists(record))
             {
@@ -147,8 +159,17 @@ public sealed class DownloadedFileStorageService : IDownloadedFileStorageService
             await _metadataService.DeleteAsync(record.Id, cancellationToken).ConfigureAwait(false);
         }
 
-        return existing.FirstOrDefault(record => Is3dml(record.LocalPath)) ?? existing.FirstOrDefault();
+        if (string.Equals(requestedExtension, ".ifc", StringComparison.OrdinalIgnoreCase))
+            return existing.FirstOrDefault(record => Is3dml(record.LocalPath)) ??
+                   existing.FirstOrDefault(record => HasExtension(record.LocalPath, requestedExtension));
+
+        return string.IsNullOrWhiteSpace(requestedExtension)
+            ? existing.FirstOrDefault(record => Is3dml(record.LocalPath)) ?? existing.FirstOrDefault()
+            : existing.FirstOrDefault(record => HasExtension(record.LocalPath, requestedExtension));
     }
+
+    private static bool HasExtension(string path, string? extension) =>
+        string.Equals(Path.GetExtension(path), extension, StringComparison.OrdinalIgnoreCase);
 
     private async Task<DownloadedFileMetadata> DownloadAndStoreAsync(
         string fileUrl,

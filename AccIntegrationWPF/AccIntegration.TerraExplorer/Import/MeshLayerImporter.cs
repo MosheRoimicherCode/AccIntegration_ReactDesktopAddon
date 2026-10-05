@@ -22,5 +22,6 @@ public sealed class MeshLayerImporter : ILayerImporter
 
         layer.Refresh();
         ClientDataValues.ApplyTo(layer, clientData);
+        _connection.World.Navigate.FlyTo(layer);
     }
 }

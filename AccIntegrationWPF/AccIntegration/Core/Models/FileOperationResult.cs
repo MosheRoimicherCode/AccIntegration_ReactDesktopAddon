@@ -12,4 +12,7 @@ public sealed class FileOperationResult
 
     // Where the local processor will write the 3DML (ConvertIfcTo3dml only).
     public string? OutputPath { get; init; }
+
+    // Final WPF conversion/import outcome (ConvertIfcTo3dml only).
+    public IfcConversionResult? IfcConversionResult { get; init; }
 }

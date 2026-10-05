@@ -1,4 +1,5 @@
 using AccIntegration.Infra;
+using AccIntegration.Infra.Logging;
 using AccIntegration.TerraExplorer;
 using AccIntegration.TerraExplorer.Import;
 using AccIntegration.TerraExplorer.License;
@@ -11,7 +12,7 @@ using AccIntegrationCli.Output;
 TextWriter standardOutput = Console.Out;
 Console.SetOut(Console.Error);
 
-using var logger = new FileLogger(Path.Combine(AppContext.BaseDirectory, "logs"));
+using var logger = new FileLogger(Path.Combine(AppContext.BaseDirectory, "logs"), "CLI");
 logger.LogUnhandledExceptions();
 
 var events = new EventWriter(standardOutput, Console.Error, logger);
@@ -28,7 +29,7 @@ var terraExplorer = new TerraExplorerConnection();
 var licenseService = new TerraExplorerAccLicenseService(terraExplorer);
 AccIntegrationContext brain = AccIntegrationFactory.Create(
     new TerraExplorerImportService(terraExplorer),
-    new WpfConversionLauncher());
+    new WpfConversionLauncher(events));
 
 var workflow = new WorkflowReporter(events);
 

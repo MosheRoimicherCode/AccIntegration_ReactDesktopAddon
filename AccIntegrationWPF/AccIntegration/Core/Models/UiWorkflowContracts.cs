@@ -57,6 +57,12 @@ public sealed class UiWorkflowResult
 
 public sealed class UiWorkflowEvent
 {
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public string? Type { get; init; }
+
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public object? Payload { get; init; }
+
     public string Name { get; init; } = string.Empty;
 
     public string Level { get; init; } = "info";

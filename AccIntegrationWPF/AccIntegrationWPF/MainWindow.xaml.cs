@@ -1,10 +1,13 @@
+using System.IO;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Threading;
 using AccIntegration.Core.Interfaces;
 using AccIntegration.Core.Models;
+using AccIntegration.Infra.Logging;
 using AccIntegrationWPF.Bridge;
 using AccIntegrationWPF.Conversion;
+using AccIntegrationWPF.SingleInstance;
 using Microsoft.Web.WebView2.Core;
 
 namespace AccIntegrationWPF;
@@ -20,14 +23,16 @@ public partial class MainWindow : Window
     private readonly ConversionQueue _queue;
     private readonly WebViewBridge _bridge;
     private readonly ICoordinateSystemService _coordinateSystems;
+    private readonly FileLogger _logger;
     private bool _choosingCoordinateSystem;
     private bool _closed;
 
-    public MainWindow(ConversionQueue queue, WebViewBridge bridge, ICoordinateSystemService coordinateSystems)
+    public MainWindow(ConversionQueue queue, WebViewBridge bridge, ICoordinateSystemService coordinateSystems, FileLogger logger)
     {
         _queue = queue ?? throw new ArgumentNullException(nameof(queue));
         _bridge = bridge ?? throw new ArgumentNullException(nameof(bridge));
         _coordinateSystems = coordinateSystems ?? throw new ArgumentNullException(nameof(coordinateSystems));
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
         InitializeComponent();
         Closed += (_, _) => _closed = true;
@@ -81,6 +86,7 @@ public partial class MainWindow : Window
         catch (Exception ex)
         {
             // Without the WebView there is no React UI to show the error in.
+            _logger.Error($"event=wpf.webview.startup_failed; exception={ex}");
             MessageBox.Show(
                 $"The Acc Integration window could not start: {ErrorText.From(ex)}",
                 "Acc Integration",
@@ -112,6 +118,17 @@ public partial class MainWindow : Window
                     break;
                 case "convert":
                     _queue.Submit(IncomingPayloads.ReadConvert(payload));
+                    break;
+                case "cancelCurrent":
+                    _queue.CancelCurrent();
+                    break;
+                case "switchToNext":
+                    _queue.SwitchToNextPending(IncomingPayloads.ReadPlacementDraft(payload));
+                    break;
+                case "moveQueueItem":
+                    if (payload.TryGetProperty("from", out JsonElement from) && from.TryGetInt32(out int fromIndex) &&
+                        payload.TryGetProperty("to", out JsonElement to) && to.TryGetInt32(out int toIndex))
+                        _queue.MovePending(fromIndex, toIndex);
                     break;
                 case "drag":
                 case "minimize":
@@ -234,13 +251,38 @@ public partial class MainWindow : Window
 
     private void OnJobCompleted(LaunchArguments job, Exception? failure)
     {
+        string status = failure is null ? "uploaded" : failure is OperationCanceledException ? "cancelled" : "failed";
+        var result = new IfcConversionResult
+        {
+            Success = failure is null,
+            Status = status,
+            Message = failure is null
+                ? null
+                : failure is OperationCanceledException ? "Cancelled by user." : ErrorText.From(failure)
+        };
+
         _bridge.Send("importResult", new
         {
-            success = failure is null,
-            status = failure is null ? "uploaded" : "failed",
+            success = result.Success,
+            status = result.Status,
             ifcPath = job.IfcPath,
             outputPath = job.OutputPath,
-            message = failure is null ? null : ErrorText.From(failure)
+            message = result.Message
         });
+
+        if (!string.IsNullOrWhiteSpace(job.CompletionPipeName))
+            _ = SendCliCompletionAsync(job.CompletionPipeName, result);
+    }
+
+    private async Task SendCliCompletionAsync(string pipeName, IfcConversionResult result)
+    {
+        try
+        {
+            await IfcConversionCompletionPipe.SendAsync(pipeName, result).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is IOException or TimeoutException or OperationCanceledException)
+        {
+            _bridge.SendError(ex, $"The command-line caller could not receive the import result: {ex.Message}");
+        }
     }
 }
